@@ -18,7 +18,7 @@ export async function prepare(options) {
   const gzip = signature[0] === 31 && signature[1] === 139;
   const temporary = output + '.' + process.pid + '.tmp';
   const fd = fs.openSync(temporary, 'wx', 0o600);
-  let closed = false, first = true, rows = 0, count = 0, skipped = 0, tail = '', used = 0;
+  let closed = false, first = true, rows = 0, count = 0, skipped = 0, tail = '', used = 0, contentError;
   const digest = createHash('sha256'), buffer = Buffer.alloc(RECORD * 32768);
   const flush = () => { if (used) fs.writeSync(fd, buffer, 0, used); used = 0; };
   const consume = (raw) => {
@@ -46,6 +46,12 @@ export async function prepare(options) {
     used += RECORD; count++;
     if (used === buffer.length) flush();
   };
+  // Node versions can surface an iterator-teardown AbortError before the sink's
+  // parsing exception. Retain the original diagnostic for the caller.
+  const consumeLine = (line) => {
+    try { consume(line); }
+    catch (error) { contentError = error; throw error; }
+  };
   try {
     fs.writeSync(fd, Buffer.alloc(HEADER));
     const raw = fs.createReadStream(input); raw.on('data', (chunk) => digest.update(chunk));
@@ -53,12 +59,12 @@ export async function prepare(options) {
       for await (const chunk of chunks) {
         const text = tail + chunk.toString('utf8');
         let start = 0, end;
-        while ((end = text.indexOf('\n', start)) !== -1) { consume(text.slice(start, end)); start = end + 1; }
+        while ((end = text.indexOf('\n', start)) !== -1) { consumeLine(text.slice(start, end)); start = end + 1; }
         tail = text.slice(start);
         if (tail.length > 1024 * 1024) throw new Error('Unexpectedly long input line.');
       }
     });
-    if (tail) consume(tail);
+    if (tail) consumeLine(tail);
     if (!count) throw new Error('No matching addresses: check network, address type, input format, and positive balances.');
     const after = fs.statSync(input);
     if (after.size !== before.size || after.mtimeMs !== before.mtimeMs) throw new Error('Input changed during preparation.');
@@ -71,7 +77,7 @@ export async function prepare(options) {
     fs.renameSync(temporary, output);
     const metadata = { ...p, inputBytes: before.size, sourceSha256: sourceSha256.toString('hex'), rows, targetRecords: count, skippedRows: skipped, format, gzipValidated: gzip, preparedAt: new Date().toISOString() };
     atomicJson(output + '.json', metadata); log('prepared', metadata); return metadata;
-  } catch (error) { if (!closed) fs.closeSync(fd); if (fs.existsSync(temporary)) fs.unlinkSync(temporary); throw error; }
+  } catch (error) { if (!closed) fs.closeSync(fd); if (fs.existsSync(temporary)) fs.unlinkSync(temporary); throw contentError ?? error; }
 }
 
 export function readDataset(filename, expected) {
