@@ -1,0 +1,4 @@
+Source: https://github.com/stars-labs/blind-derivation
+Commit: 573455e70f0b7c1720395146a68135b6333b0cbf
+Files copied unmodified from kernels/.
+License: MIT OR Apache-2.0; notices included alongside these files.

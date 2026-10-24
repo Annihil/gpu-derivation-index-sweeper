@@ -1,0 +1,22 @@
+{
+  "name": "gpu-derivation-index-sweeper",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Offline BIP32 address-index recovery with CPU workers and an optional NVIDIA CUDA backend.",
+  "license": "MIT",
+  "engines": { "node": ">=22" },
+  "bin": { "index-sweep": "bin/sweep.mjs" },
+  "scripts": {
+    "test": "node --test test/core.test.mjs test/cli.test.mjs",
+    "test:gpu": "node --test test/gpu.test.mjs",
+    "check:public": "node scripts/check-public-files.mjs",
+    "demo": "node examples/create-demo.mjs"
+  },
+  "dependencies": {
+    "bip32": "5.0.1",
+    "bitcoinjs-lib": "7.0.4",
+    "bs58check": "4.0.0",
+    "tiny-secp256k1": "2.2.4"
+  }
+}

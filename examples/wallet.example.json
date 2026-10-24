@@ -1,0 +1,6 @@
+{
+  "xpubFile": "wallet.xpub",
+  "branch": "1/*",
+  "network": "litecoin",
+  "addressType": "p2pkh"
+}
